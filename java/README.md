@@ -13,9 +13,11 @@ If you want to try to compile servlet by yourself, you can do that by following 
 
 1. Install JDK 1.8 to the system which already installs Notes of Domino.
 
-2. Download **servlet-api.jar** to your JDK-installed system.
+2. Download **servlet-api.jar** to your JDK-installed system:
 
-3. Compile **nsficon2qr.java** with JDK, for example:
+  - http://www.java2s.com/Code/Jar/s/Downloadservletapijar.htm
+
+3. Compile **nsficon2qr.java** with JDK. You need to specify classpath of **servlet-api.jar** and **Notes.jar** for example:
 
   - `$ javac -classpath /root/servlet-api.jar:/opt/ibm/domino/notes/latest/linux/jvm/lib/ext/Notes.jar -encoding utf-8 $1`
 
