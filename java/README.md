@@ -5,6 +5,11 @@
 Java servlet part of **nsficon2qr**.
 
 
+## Specification
+
+As of 2020/Jun/13, This servlet supports Notes' **classic icon** only(Not the ones of export icon after V8.5.2).
+
+
 ## Compile(Option)
 
 You can use servlet class in this forlder. In this case, you don't have to compile servlet.
@@ -26,7 +31,7 @@ If you want to try to compile servlet by yourself, you can do that by following 
 
 ## Install
 
-1. Install IBM Domino v10, or HCL Domino v11 with HTTP task.
+1. Install, setup, and start IBM Domino v10, or HCL Domino v11 with HTTP task.
 
 2. Enable **Domino servlet engine** in your server settings.
 
