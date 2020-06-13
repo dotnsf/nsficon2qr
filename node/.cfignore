@@ -1,0 +1,4 @@
+node_modules/
+logs/system.log
+package-lock.json
+settings.js.*

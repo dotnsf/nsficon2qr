@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<title>Sample for NSFICON2AX</title>
+<script type="text/javascript" src="//code.jquery.com/jquery-2.2.4.min.js"></script>
+<link href="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet"/>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+<script src="./qr_ax.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+<meta name="apple-mobile-web-app-title" content="NSFICON2AX"/>
+
+<style type="text/css">
+html, body{
+  text-align: center;
+  background-color: #fafafa;
+  font-size: 20px;
+  color: #333;
+}
+.hide{
+  display: none;
+}
+</style>
+
+<script>
+$(function(){
+});
+
+function nsficon2qr(){
+  var server = $('#server').val();
+  var filepath = $('#filepath').val();
+  var path = '/nsficon?filepath=' + filepath;
+  if( server && server.length > 0 ){
+    path += ( '&server=' + server );
+  }
+
+  $.ajax({
+    type: 'GET',
+    url: path,
+    success: function( result ){
+      console.log( result );
+      if( result.status ){
+        data2qrcode( result.body, '/qrcode', 'img_id' );
+      }
+    },
+    error: function( e0, e1, e2 ){
+      console.log( e1, e2 );
+    }
+  });
+}
+</script>
+</head>
+<body>
+
+<div class="container">
+  <table class="table">
+    <tr><td>Domino Server</td><td><input id="server" type="text" value=""/></td></tr>
+    <tr><td>FilePath</td><td><input id="filepath" type="text" value="node-demo.nsf"/></td></tr>
+    <tr><td colspan="2"><button class="btn btn-primary" onClick="nsficon2qr();">NSFICON2QR</button></td></tr>
+  </table>
+</div>
+
+<hr/>
+<div class="container">
+  <canvas id="canvas_id" width="32" height="32" class="hide"></canvas>
+  <img id="img_id" width="300" height="300"/>
+</div>
+
+</body>
+</html>
