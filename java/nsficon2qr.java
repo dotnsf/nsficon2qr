@@ -3,6 +3,7 @@ import java.io.*;
 import java.util.*;
 //import java.util.concurrent.*;
 import java.awt.*;
+import java.awt.image.*;
 import javax.servlet.*;
 import javax.servlet.http.*;
 import lotus.domino.*;
@@ -34,10 +35,17 @@ public class nsficon2qr extends HttpServlet{
           db.open();
         }
 
+        //. DBIcon のみ
+        NoteCollection nc = db.createNoteCollection( false );
+        nc.selectAllFormatElements( true );
+        nc.setSelectImageResources( true );
+        nc.setSelectIcon( true );
+        nc.buildCollection();
+
         DxlExporter exporter = session.createDxlExporter();
         exporter.setOutputDOCTYPE( false );
         exporter.setConvertNotesBitmapsToGIF( true );
-        String dxl = exporter.exportDxl( db );
+        String dxl = exporter.exportDxl( nc ); //exporter.exportDxl( db );
 
         Element databaseElement = getRootElement( dxl );  //. <database>
         String repid = databaseElement.getAttribute( "replicaid" );
@@ -56,10 +64,10 @@ public class nsficon2qr extends HttpServlet{
 
         //. DB Icon
         int[] qrdata = new int[620];    //. 620?
-        String dbicon = null;
+        Boolean exporticon = false;
+
         //. Lotus Notes 8.5.2 以降のエクスポートアイコンを探す
-/*
-        NodeList imgresList = databaseElement.getElementByTagName( "imageresource" );
+        NodeList imgresList = databaseElement.getElementsByTagName( "imageresource" );
         int nImgresList = imgresList.getLength();
         for( int i = 0; i < nImgresList; i ++ ){
           Element imgresElement = ( Element )imgresList.item( i );
@@ -78,27 +86,373 @@ public class nsficon2qr extends HttpServlet{
             if( imgList.getLength() > 0 ){
               Element imgElement = ( Element )imgList.item( 0 );
               String bitmapdata = imgElement.getFirstChild().getNodeValue();
+              bitmapdata = bitmapdata.replaceAll( "(\\r|\\n|\\t)", "" ); 
               if( bitmapdata.length() > 0 ){
-                data = Base64.decodeBase64( bitmapdata );
+                Base64.Decoder decoder = Base64.getDecoder();
+                data = decoder.decode( bitmapdata );
+                //data = Base64.decodeBase64( bitmapdata );
               }
             }
             if( data != null ){
-              //. いったん保存
+              //. エクスポートアイコンが見つかった
               try{
-                File f = new File( repid + imageext );
-                BufferedOutputStream bos = new BufferedOutputStream( new FileOutputStream( f ) );
-                bos.write( data, 0, data.length );
-                bos.close();
-
+                //. https://stackoverflow.com/questions/12705385/how-to-convert-a-byte-to-a-bufferedimage-in-java
+                ByteArrayInputStream bais = new ByteArrayInputStream( data );
                 BufferedImage srcimg = null;
                 try{
-                  srcimg = ImageIO.read( f );
-                  ByteArrayOutputStream os = new ByteArrayOutputStream();
-                  ImageIO.write( srcimg, "gif", os );
-                  dbicon = Base64.encodeBase64String( os.toByteArray() );
-                }catch( Exception e ){
+                  srcimg = ImageIO.read( bais );
+                }catch( IOException e ){
                   e.printStackTrace();
-                  srcimg = null;
+                }
+
+                if( srcimg != null ){
+                  //. https://stackoverflow.com/questions/6524196/java-get-pixel-array-from-image
+                  Color[][] result = convertTo2D( srcimg );
+
+                  //. カラーパレット変換テーブル
+                  int[] color_palette_table = new int[159];
+                  int _i = 0;
+                  for( int ii = 0; ii < 16; ii ++ ){
+                    for( int jj = 0; jj < 9; jj ++ ){
+                      int v = 16 * ii + jj;
+                      color_palette_table[_i++] = v;
+                    }
+                  }
+                  for( int ii = 0; ii < 15; ii ++ ){
+                    int v = 16 * ii + 15;
+                    color_palette_table[_i++] = v;
+                  }
+
+                  //.
+                  int __color_palette[][] = {
+                    //. R    G    B
+                    //{   0,   0,   0 },  //. dummy
+                      { 255, 239, 255 },
+                      { 255, 154, 173 },
+                      { 239,  85, 156 },
+                      { 255, 101, 173 },
+                      { 255,   0,  99 },
+                      { 189,  69, 115 },
+                      { 206,   0,  82 },
+                      { 156,   0,  49 },
+                      {  82,  32,  49 },
+                      { 255, 186, 206 },  //. 10
+                      { 255, 117, 115 },
+                      { 222,  48,  16 },
+                      { 255,  85,  66 },
+                      { 255,   0,   0 },
+                      { 206, 101,  99 },
+                      { 189,  69,  66 },
+                      { 189,   0,   0 },
+                      { 140,  32,  33 },
+                      { 222, 207, 189 },
+                      { 255, 207,  99 },  //. 20
+                      { 222, 101,  33 },
+                      { 222, 170,  33 },
+                      { 222, 101,   0 },
+                      { 189, 138,  82 },
+                      { 222,  69,   0 },
+                      { 189,  69,   0 },
+                      {  99,  48,  16 },
+                      { 255, 239, 222 },
+                      { 255, 223, 206 },
+                      { 255, 207, 173 },  //. 30
+                      { 255, 186, 140 },
+                      { 255, 170, 140 },
+                      { 222, 138,  99 },
+                      { 189, 101,  66 },
+                      { 156,  85,  49 },
+                      { 140,  69,  33 },
+                      { 255, 207, 255 },
+                      { 239, 138, 255 },
+                      { 206, 101, 222 },
+                      { 189, 138, 206 },  //. 40
+                      { 206,   0, 255 },
+                      { 156, 101, 156 },
+                      { 140,   0, 173 },
+                      {  82,   0, 115 },
+                      {  49,   0,  66 },
+                      { 255, 186, 255 },
+                      { 255, 154, 255 },
+                      { 222,  32, 189 },
+                      { 222,  85, 239 },
+                      { 255,   0, 206 },  //. 50
+                      { 140,  85, 115 },
+                      { 189,   0, 156 },
+                      { 140,   0,  99 },
+                      {  82,   0,  66 },
+                      { 222, 186, 156 },
+                      { 206, 170, 115 },
+                      { 115,  69,  49 },
+                      { 173, 117,  66 },
+                      { 156,  48,   0 },
+                      { 115,  48,  33 },  //. 60
+                      {  82,  32,   0 },
+                      {  49,  16,   0 },
+                      {  33,  16,   0 },
+                      { 255, 255, 206 },
+                      { 255, 255, 115 },
+                      { 222, 223,  33 },
+                      { 255, 255,   0 },
+                      { 255, 223,   0 },
+                      { 206, 170,   0 },
+                      { 156, 154,   0 },  //. 70
+                      { 140, 117,   0 },
+                      {  82,  85,   0 },
+                      { 222, 186, 255 },
+                      { 189, 154, 239 },
+                      {  99,  48, 206 },
+                      { 156,  85, 255 },
+                      {  99,   0, 255 },
+                      {  82,  69, 140 },
+                      {  66,   0, 156 },
+                      {  33,   0,  99 },  //. 80
+                      {  33,  16,  49 },
+                      { 189, 186, 255 },
+                      { 140, 154, 255 },
+                      {  49,  48, 173 },
+                      {  49,  85, 239 },
+                      {   0,   0, 255 },
+                      {  49,  48, 140 },
+                      {   0,   0, 173 },
+                      {  16,  16,  99 },
+                      {   0,   0,  33 },  //. 90
+                      { 156, 239, 189 },
+                      {  99, 207, 115 },
+                      {  33, 101,  16 },
+                      {  66, 170,  49 },
+                      {   0, 138,  49 },
+                      {  82, 117,  82 },
+                      {  33,  85,   0 },
+                      {  16,  48,  33 },
+                      {   0,  32,  16 },
+                      { 222, 255, 189 },  //. 100
+                      { 206, 255, 140 },
+                      { 140, 170,  82 },
+                      { 173, 223, 140 },
+                      { 140, 255,   0 },
+                      { 173, 186, 156 },
+                      {  99, 186,   0 },
+                      {  82, 154,   0 },
+                      {  49, 101,   0 },
+                      { 189, 223, 255 },
+                      { 115, 207, 255 },  //. 110
+                      {  49,  85, 156 },
+                      {  99, 154, 255 },
+                      {  16, 117, 255 },
+                      {  66, 117, 173 },
+                      {  33,  69, 115 },
+                      {   0,  32, 115 },
+                      {   0,  16,  66 },
+                      { 173, 255, 255 },
+                      {  82, 255, 255 },
+                      {   0, 138, 189 },  //. 120
+                      {  82, 186, 206 },
+                      {   0, 207, 255 },
+                      {  66, 154, 173 },
+                      {   0, 101, 140 },
+                      {   0,  69,  82 },
+                      {   0,  32,  49 },
+                      { 206, 255, 239 },
+                      { 173, 239, 222 },
+                      {  49, 207, 173 },
+                      {  82, 239, 189 },  //. 130
+                      {   0, 255, 206 },
+                      { 115, 170, 173 },
+                      {   0, 170, 156 },
+                      {   0, 138, 115 },
+                      {   0,  69,  49 },
+                      { 173, 255, 173 },
+                      { 115, 255, 115 },
+                      {  99, 223,  66 },
+                      {   0, 255,   0 },
+                      {  33, 223,  33 },  //. 140
+                      {  82, 186,  82 },
+                      {   0, 186,   0 },
+                      {   0, 138,   0 },
+                      {  33,  69,  33 },
+                      { 255, 255, 255 },
+                      { 239, 239, 239 },
+                      { 222, 223, 222 },
+                      { 206, 207, 206 },
+                      { 189, 186, 189 },
+                      { 173, 170, 173 },  //. 150
+                      { 156, 154, 156 },
+                      { 140, 138, 140 },
+                      { 115, 117, 115 },
+                      {  99, 101,  99 },
+                      {  82,  85,  82 },
+                      {  66,  69,  66 },
+                      {  49,  48,  49 },
+                      {  33,  32,  33 },
+                      {   0,   0,   0 }
+                  };
+
+                  int[] tmpimgdata = new int[32*32];
+                  for( int row = 0; row < 32; row ++ ){
+                    for( int col = 0; col < 32; col ++ ){
+                      Color color = result[row][col];
+                      int r1 = color.getRed();
+                      int g1 = color.getGreen();
+                      int b1 = color.getBlue();
+                      int a1 = color.getTransparency();
+                      int color_index1 = getColorIndex( __color_palette, r1, g1, b1, a1 );
+
+                      //. 減色処理前のデータ
+                      tmpimgdata[row*32+col] = color_index1;
+                    }
+                  }
+
+                  //. 減色の準備として色をカウント
+                  int[] counts = new int[159];
+                  for( int ii = 0; ii < 159; ii ++ ){
+                    counts[ii] = 0;
+                  }
+                  for( int ii = 0; ii < tmpimgdata.length; ii ++ ){
+                    counts[tmpimgdata[ii]] ++;
+                  }
+                  
+                  //. 上位15色のみ有効にして取り出す
+                  Integer[] ranks = new Integer[159];
+                  for( int ii = 0; ii < counts.length; ii ++ ){
+                    ranks[ii] = ( Integer )counts[ii];
+                  }
+                  Arrays.sort( ranks, Comparator.reverseOrder() );
+
+                  //. 上位15位までの色のインデックス番号を取り出す
+                  ArrayList<Integer> idx15 = new ArrayList<Integer>();
+                  //. 15位の数値より大きいものだけをランキングへ
+                  for( int ii = 0; ii < counts.length; ii ++ ){
+                    //int r = ranks.indexOf( new Integer(counts[ii]) );
+                    int r = indexOfIntegerArray( ranks, new Integer(counts[ii]) );
+                    if( r > -1 && ( int )ranks[14] < counts[ii] ){
+                      idx15.add( ii );
+                	  }
+                  }
+                  //. 15位の数値と同じものだけをランキングへ
+                  for( int ii = 0; ii < counts.length; ii ++ ){
+                    //int r = ranks.indexOf( new Integer(counts[ii]) );
+                    int r = indexOfIntegerArray( ranks, new Integer(counts[ii]) );
+                    if( r > -1 && ( int )ranks[14] == counts[ii] ){
+                      if( idx15.size() < 15 ){
+                        idx15.add( i );
+                	    }
+                	  }
+                  }
+
+                  //. 上位15位のカラーパレット
+                  int[][] color_palette15 = new int[15][3];
+                  for( int ii = 0; ii < idx15.size(); ii ++ ){
+                    color_palette15[ii] = __color_palette[idx15.get(ii)];
+                  }
+
+                  //. 上位15色のみ有効にして、他の色を使っている場合は近い色にシフトする形で減色処理
+                  //int[] tmpimgdata2 = new int[32*32];
+                  ArrayList<Integer> tmpimgdata2 = new ArrayList<Integer>();
+                  for( int k = 0; k < tmpimgdata.length; k ++ ){
+                	  int color_index = tmpimgdata[k];
+                  	if( idx15.indexOf( ( Integer )color_index ) > -1 ){
+                  	  tmpimgdata2.add( idx15.indexOf( ( Integer )color_index ) );
+                  	}else{
+                	    //. 15色の中から近い色を探す
+                	    int[] cp = __color_palette[color_index];
+
+                      int idx = -1;  //. 0-158
+                      //. ３次元ユークリッド距離で比較
+                      int mx = 255 * 255 * 3;
+                      for( int jj = 0; jj < color_palette15.length; jj ++ ){
+                        int d = ( color_palette15[jj][0] - cp[0] ) * ( color_palette15[jj][0] - cp[0] )
+                          + ( color_palette15[jj][1] - cp[1] ) * ( color_palette15[jj][1] - cp[1] )
+                          + ( color_palette15[jj][2] - cp[2] ) * ( color_palette15[jj][2] - cp[2] );
+                        if( d < mx ){
+                          idx = i;
+                          mx = d;
+                        }
+                	    }
+                      tmpimgdata2.add( idx );
+                    }
+                  }
+
+                  //. エンディアンを意識して再構成
+                  int[] imgdata = new int[32*16];
+                  for( int k = 0; k < tmpimgdata2.size(); k += 2 ){
+                    int color_index1 = tmpimgdata2.get( k );
+                    int color_index2 = tmpimgdata2.get( k+1 );
+                    int idx = color_index2 * 16 + color_index1;
+                	  imgdata[k/2] = idx;
+                  }
+
+                  //. QR Code
+                  int idx = 0;
+
+                  //. Title
+                  int[] titlearray = str2bytearray( dbTitle );
+                  for( int ii = 0; ii < 42; ii ++ ){
+                    if( ii < titlearray.length ){
+                      int c = titlearray[ii];
+                      qrdata[idx++] = c;
+                    }else{
+                      qrdata[idx++] = 0;
+                    }
+                  }
+
+                  //. *1, *2
+                  qrdata[idx++] = 23;
+                  qrdata[idx++] = 146;
+
+                  //. Author
+                  int[] authorarray = str2bytearray( "Domino" );
+                  for( int ii = 0; ii < 18; ii ++ ){
+                    if( ii < authorarray.length ){
+                      int c = authorarray[ii];
+                      qrdata[idx++] = c;
+                    }else{
+                      qrdata[idx++] = 0;
+                    }
+                  }
+
+                  //. *12, *13, *3, *4
+                  qrdata[idx++] = 1;
+                  qrdata[idx++] = 0;
+                  qrdata[idx++] = 216;
+                  qrdata[idx++] = 144;
+
+                  //. Town
+                  int[] townarray = str2bytearray( servername );
+                  for( int ii = 0; ii < 18; ii ++ ){
+                    if( ii < townarray.length ){
+                      int c = townarray[ii];
+                      qrdata[idx++] = c;
+                    }else{
+                      qrdata[idx++] = 0;
+                    }
+                  }
+
+                  //. *14, *15, *5, *6
+                  qrdata[idx++] = 0;
+                  qrdata[idx++] = 0;
+                  qrdata[idx++] = 1;
+                  qrdata[idx++] = 2;
+
+                  //. Color palette
+                  for( int ii = 0; ii < 15; ii ++ ){
+                    qrdata[idx++] = color_palette_table[idx15.get(ii)];
+                  }
+
+                  //. *7, *8, *9, *10, *11
+                  qrdata[idx++] = 198;
+                  qrdata[idx++] = 0;
+                  qrdata[idx++] = 9;
+                  qrdata[idx++] = 0;
+                  qrdata[idx++] = 0;
+
+                  //. palette data
+                  for( int ii = 0; ii < imgdata.length; ii ++ ){
+                    qrdata[idx++] = imgdata[ii];
+                  }
+
+                  //. エクスポートアイコンだった
+                  exporticon = true;
                 }
               }catch( Exception e ){
                 e.printStackTrace();
@@ -107,9 +461,8 @@ public class nsficon2qr extends HttpServlet{
             break;
           }
         }
-*/
 
-        if( dbicon == null ){
+        if( exporticon == false ){
           NodeList noteList = databaseElement.getElementsByTagName( "note" );
           int nNoteList = noteList.getLength();
           for( int cnt = 0; cnt < nNoteList; cnt ++ ){
@@ -130,7 +483,7 @@ public class nsficon2qr extends HttpServlet{
                 //.System.out.println( "#bitmapdata = " + bitmapdata.length() ); //. 877
                 bitmapdata = bitmapdata.replaceAll( "(\\r|\\n|\\t)", "" ); 
                 Base64.Decoder decoder = Base64.getDecoder();
-                data = decoder.decode( bitmapdata );  //. Illegal base64 character
+                data = decoder.decode( bitmapdata );
                 //data = Base64.decodeBase64( bitmapdata );
                 break;
               }
@@ -343,6 +696,50 @@ public class nsficon2qr extends HttpServlet{
     }
 
     return idx;
+  }
+
+  public int getColorIndex( int[][] __color_palette, int rr, int gg, int bb, int aa ){
+    int idx = -1;  //. 0-158
+
+    //. ３次元ユークリッド距離で比較
+    int mx = 255 * 255 * 3;
+    for( int i = 0; i < __color_palette.length; i ++ ){
+      int d = ( __color_palette[i][0] - rr ) * ( __color_palette[i][0] - rr )
+        + ( __color_palette[i][1] - gg ) * ( __color_palette[i][1] - gg )
+        + ( __color_palette[i][2] - bb ) * ( __color_palette[i][2] - bb );
+      if( d < mx ){
+        idx = i;
+        mx = d;
+      }
+    }
+
+    return idx;
+  }
+
+
+  public static Color[][] convertTo2D( BufferedImage image ){
+    int width = image.getWidth();
+    int height = image.getHeight();
+    Color[][] result = new Color[height][width];
+
+    for( int row = 0; row < height; row ++ ){
+      for( int col = 0; col < width; col ++ ){
+        result[row][col] = new Color( image.getRGB( col, row ) );
+      }
+    }
+
+    return result;
+  }
+
+  public static int indexOfIntegerArray( Integer[] array, Integer key ){
+    int r = -1;
+    for( int i = 0; i < array.length; i ++ ){
+      if( key == array[i] ){
+        r = i;
+        break;
+      }
+    }
+    return r;
   }
 }
 
