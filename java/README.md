@@ -7,7 +7,9 @@ Java servlet part of **nsficon2qr**.
 
 ## Specification
 
-As of 2020/Jun/13, This servlet supports Notes' **classic icon** only(Not the ones of export icon after V8.5.2).
+~~As of 2020/Jun/13, this servlet supports Notes' **classic icon** only(Not the ones of export icon after V8.5.2).~~
+
+As of 2020/Jun/15, this servlet supports both Notes' **classic icon** and **application icon after V8.5.2**. If DB has application icon, servlet would retrieve application icon. If not, servlet would retrieve classic icon.
 
 
 ## Compile(Option)

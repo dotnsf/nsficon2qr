@@ -81,6 +81,9 @@ public class nsficon2qr extends HttpServlet{
             if( imgList.getLength() == 0 ){
               imgList = imgresElement.getElementsByTagName( "jpeg" );
             }
+            if( imgList.getLength() == 0 ){
+              imgList = imgresElement.getElementsByTagName( "png" );
+            }
 
             byte[] data = null;
             if( imgList.getLength() > 0 ){
@@ -327,17 +330,17 @@ public class nsficon2qr extends HttpServlet{
                     int r = indexOfIntegerArray( ranks, new Integer(counts[ii]) );
                     if( r > -1 && ( int )ranks[14] < counts[ii] ){
                       idx15.add( ii );
-                	  }
+                    }
                   }
                   //. 15位の数値と同じものだけをランキングへ
-                  for( int ii = 0; ii < counts.length; ii ++ ){
+                  for( int ii = 0; ii < counts.length && idx15.size() < 15; ii ++ ){
                     //int r = ranks.indexOf( new Integer(counts[ii]) );
                     int r = indexOfIntegerArray( ranks, new Integer(counts[ii]) );
                     if( r > -1 && ( int )ranks[14] == counts[ii] ){
-                      if( idx15.size() < 15 ){
-                        idx15.add( i );
-                	    }
-                	  }
+                      //if( idx15.size() < 15 ){
+                        idx15.add( ii );
+                      //}
+               	    }
                   }
 
                   //. 上位15位のカラーパレット
@@ -734,7 +737,7 @@ public class nsficon2qr extends HttpServlet{
   public static int indexOfIntegerArray( Integer[] array, Integer key ){
     int r = -1;
     for( int i = 0; i < array.length; i ++ ){
-      if( key == array[i] ){
+      if( ( int )key == ( int )array[i] ){
         r = i;
         break;
       }
