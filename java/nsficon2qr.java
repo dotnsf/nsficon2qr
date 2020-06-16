@@ -559,8 +559,17 @@ public class nsficon2qr extends HttpServlet{
                 //.クラシックアイコンは順序が逆
                 //int color_index = color_index2 * 16 + color_index1;
                 //imgdata[j/2] = color_index;
-                int color_index = color_index1 * 16 + color_index2;
-                imgdata[511-j/2] = color_index;
+
+                //int color_index = color_index1 * 16 + color_index2;
+                //imgdata[511-j/2] = color_index;
+
+                //. #1 左右反転
+                int color_index = color_index2 * 16 + color_index1;
+                int i = 511-j/2;
+                int i1 = i / 16;
+                int i2 = i % 16;
+                i = i1 * 16 + ( 15 - i2 );
+                imgdata[i] = color_index;
               }
 
               //. QR Code
